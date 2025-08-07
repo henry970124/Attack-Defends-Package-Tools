@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  # 封包錄製服務
+  packet-capture:
+    build: ./packet-capture
+    container_name: ad-packet-capture
+    network_mode: host
+    privileged: true
+    volumes:
+      - ./shared/pcap:/data/pcap
+      - ./shared/logs:/data/logs
+    environment:
+      - INTERFACE=eth0
+      - CAPTURE_FILTER=
+    restart: unless-stopped
+    depends_on:
+      - packet-analysis
+
+  # 封包鑑識分析服務
+  packet-analysis:
+    build: ./packet-analysis
+    container_name: ad-packet-analysis
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./shared/pcap:/data/pcap
+      - ./shared/analysis:/data/analysis
+      - ./shared/logs:/data/logs
+    environment:
+      - DATABASE_URL=sqlite:///data/analysis/packets.db
+    restart: unless-stopped
+    depends_on:
+      - malicious-detection
+
+  # 惡意流量偵測服務
+  malicious-detection:
+    build: ./malicious-detection
+    container_name: ad-malicious-detection
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./shared/pcap:/data/pcap
+      - ./shared/analysis:/data/analysis
+      - ./shared/logs:/data/logs
+      - ./malicious-detection/rules:/app/rules
+    environment:
+      - YARA_RULES_PATH=/app/rules
+      - ALERT_THRESHOLD=5
+    restart: unless-stopped
+
+  # Web界面服務
+  web-dashboard:
+    build: ./web-dashboard
+    container_name: ad-web-dashboard
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./shared/analysis:/data/analysis
+    environment:
+      - ANALYSIS_API_URL=http://packet-analysis:8080
+      - DETECTION_API_URL=http://malicious-detection:8081
+    restart: unless-stopped
+    depends_on:
+      - packet-analysis
+      - malicious-detection
+
+volumes:
+  shared_data:
+
+networks:
+  default:
+    driver: bridge

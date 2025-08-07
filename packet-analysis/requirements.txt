@@ -1,0 +1,11 @@
+flask==2.3.3
+flask-cors==4.0.0
+scapy==2.5.0
+pyshark==0.6
+sqlite3
+pandas==2.1.1
+numpy==1.24.3
+python-dateutil==2.8.2
+ipaddress
+geoip2==4.7.0
+requests==2.31.0
